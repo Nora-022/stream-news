@@ -6,6 +6,7 @@ import {
   TECH_SIGNALS, 
   NOISE_KEYWORDS, 
   AUTHORITY_WEIGHTS,
+  DRM_FILTER_KEYWORDS,
   CONFIG,
   type NewsSource, 
   type Category 
@@ -66,6 +67,17 @@ export class NewsFetcher {
 
         for (const item of recentItems) {
           if (!item.title || !item.link) continue;
+
+          // Strict Filter: Must match at least one DRM keyword
+          const fullText = `${item.title} ${item.content || ''} ${item.contentSnippet || ''}`.toLowerCase();
+          const hasDrmKeyword = DRM_FILTER_KEYWORDS.some(kw => fullText.includes(kw.toLowerCase()));
+          
+          // Special exception for "S-Tier" sources (always include if score is high enough)
+          const isHighAuthority = source.authorityLevel === 'S';
+
+          if (!hasDrmKeyword && !isHighAuthority) {
+            continue;
+          }
 
           // Process each item (Initial Scoring)
           const processedItem = this.preProcessItem(item, source);
@@ -212,27 +224,36 @@ export class NewsFetcher {
   }
 
   private ruleBasedAnalysis(item: NewsItem): NewsItem {
-    // Fallback logic for non-paid users
+    // Fallback logic for non-paid users (ENHANCED)
     let impactLevel: '高' | '中' | '低' = '低';
     
-    // Simple heuristic for impact based on score or keywords
-    if (item.score >= 60 || item.title.includes('vulnerability') || item.title.includes('漏洞')) impactLevel = '高';
-    else if (item.score >= 40) impactLevel = '中';
+    // Heuristic: Vulnerability or Key Extraction = High Impact
+    const lcTitle = item.title.toLowerCase();
+    if (lcTitle.includes('vulnerability') || lcTitle.includes('exploit') || lcTitle.includes('bypass') || lcTitle.includes('widevine l3') || lcTitle.includes('key extraction')) {
+      impactLevel = '高';
+    } else if (item.score >= 40) {
+      impactLevel = '中';
+    }
 
-    // Generate a basic summary using the snippet (truncated)
-    const snippet = item.contentSnippet ? item.contentSnippet.substring(0, 150).replace(/\n/g, ' ') + '...' : '暂无详细摘要';
+    // Generate a clean snippet
+    let snippet = item.contentSnippet ? item.contentSnippet.substring(0, 200).replace(/\n/g, ' ') + '...' : '暂无详细摘要';
     
-    // Provide a generic but polite Chinese message
-    const isEnglishSource = /[\u0000-\u00ff]+/.test(item.title); // Rough check if mostly ASCII
-    
+    // Add Tag based on keywords
+    let tag = '';
+    if (lcTitle.includes('widevine')) tag = '【Widevine Update】';
+    else if (lcTitle.includes('playready')) tag = '【PlayReady Update】';
+    else if (lcTitle.includes('fairplay')) tag = '【FairPlay Update】';
+    else if (lcTitle.includes('netflix')) tag = '【Netflix Tech】';
+    else if (lcTitle.includes('disney')) tag = '【Disney Tech】';
+
     let summary = snippet;
-    let potentialImpact = '需要人工评估该技术更新的具体影响。';
-    let actionSuggestion = '建议点击链接查看原文详情。';
+    let potentialImpact = '请技术团队评估该更新对播放器/下载服务的影响。';
+    let actionSuggestion = '点击标题查看技术细节。';
 
-    if (isEnglishSource) {
-      summary = `[原语言摘要] ${snippet} (注：由于未配置 AI Key，暂不支持自动翻译)`;
-      potentialImpact = '请阅读原文以评估对业务的潜在影响。';
-      actionSuggestion = '请直接访问来源链接。';
+    // For English content, just show it cleanly without "Not Translated" warnings if possible, 
+    // or keep it minimal. The user understands English technical terms.
+    if (tag) {
+      summary = `${tag} ${snippet}`;
     }
 
     return {
