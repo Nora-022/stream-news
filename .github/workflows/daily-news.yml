@@ -1,0 +1,41 @@
+name: Daily StreamDRM News
+
+on:
+  schedule:
+    # 每天 UTC 时间 01:00 运行 (对应北京时间 09:00)
+    - cron: '0 1 * * *'
+  # 允许在 Actions 页面手动触发
+  workflow_dispatch:
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    
+    # 设置时区为上海，方便日志查看
+    env:
+      TZ: Asia/Shanghai
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Run News Bot
+        env:
+          # 从 GitHub Secrets 中读取 Webhook 地址
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          # 在 Actions 环境中强制设置 Cron 规则（虽然这里是立即运行，但保持配置一致性）
+          SCHEDULE_CRON: '0 9 * * *'
+        # 使用 --run-now 参数立即执行一次抓取和推送
+        run: npm start -- --run-now

@@ -1,0 +1,28 @@
+{
+  "name": "ai-news",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@types/node": "^25.1.0",
+    "axios": "^1.13.4",
+    "dotenv": "^17.2.3",
+    "node-schedule": "^2.1.1",
+    "rss-parser": "^3.13.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/node-schedule": "^2.1.8"
+  }
+}
