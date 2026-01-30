@@ -13,88 +13,70 @@ export interface NewsSource {
 }
 
 export const NEWS_SOURCES: NewsSource[] = [
-  // --- Technology / Engineering (S-Tier) ---
+  // --- Chinese Tech Sources (Free & Native) ---
+  {
+    name: 'InfoQ CN (架构/音视频)',
+    url: 'https://www.infoq.cn/feed',
+    defaultCategory: 'Technology Update',
+    authorityLevel: 'S',
+    description: 'InfoQ 中文站，涵盖架构与前沿技术'
+  },
+  {
+    name: 'OSChina (开源/资讯)',
+    url: 'https://www.oschina.net/news/rss',
+    defaultCategory: 'Industry News',
+    authorityLevel: 'A',
+    description: '开源中国最新资讯'
+  },
+  {
+    name: 'Solidot (硬核科技)',
+    url: 'https://www.solidot.org/index.rss',
+    defaultCategory: 'Technology Update',
+    authorityLevel: 'S',
+    description: '奇客的资讯，关注安全与黑客技术'
+  },
+  {
+    name: '36Kr (行业资讯)',
+    url: 'https://www.36kr.com/feed',
+    defaultCategory: 'Industry News',
+    authorityLevel: 'A',
+    description: '科技创投媒体'
+  },
+  {
+    name: 'V2EX (技术讨论)',
+    url: 'https://www.v2ex.com/index.xml',
+    defaultCategory: 'Industry News',
+    authorityLevel: 'B',
+    description: 'V2EX 社区热点'
+  },
+
+  // --- Specialized DRM/Security (English - Kept as Fallback) ---
+  // 由于中文 DRM 专有源极少，保留核心英文源，若有重大更新仍需关注
+  {
+    name: 'TorrentFreak (DRM News)',
+    url: 'https://torrentfreak.com/feed/',
+    defaultCategory: 'Technology Update',
+    authorityLevel: 'A',
+    description: '反盗版与版权法律核心媒体'
+  },
+  
+  /* 
+  // --- English Sources (Disabled for non-paid user preference) ---
   {
     name: 'Netflix Tech Blog',
     url: 'https://netflixtechblog.com/feed',
     defaultCategory: 'Technology Update',
     authorityLevel: 'S',
-    description: 'Netflix 官方技术博客，涵盖流媒体底层架构与 DRM 实践'
+    description: 'Netflix 官方技术博客'
   },
   {
     name: 'Bitmovin Blog',
-    url: 'https://bitmovin.com/blog/feed', // 修正后的 RSS 地址
+    url: 'https://bitmovin.com/blog/feed',
     defaultCategory: 'Technology Update',
     authorityLevel: 'S',
     description: '视频编码与播放器技术权威博客'
   },
-  {
-    name: 'Spotify Engineering',
-    url: 'https://engineering.atspotify.com/feed/',
-    defaultCategory: 'Technology Update',
-    authorityLevel: 'A',
-    description: '音频流媒体技术架构'
-  },
-  {
-    name: 'Meta Engineering',
-    url: 'https://engineering.fb.com/feed/',
-    defaultCategory: 'Technology Update',
-    authorityLevel: 'A',
-    description: 'Meta 视频与基础设施技术'
-  },
-
-  // --- DRM & Security (A-Tier) ---
-  {
-    name: 'TorrentFreak',
-    url: 'https://torrentfreak.com/feed/',
-    defaultCategory: 'Technology Update', // 虽然是新闻，但常含 DRM 破解技术细节
-    authorityLevel: 'A',
-    description: '反盗版与版权法律核心媒体'
-  },
-  {
-    name: 'VdoCipher Blog',
-    url: 'https://www.vdocipher.com/blog/feed/',
-    defaultCategory: 'Technology Update',
-    authorityLevel: 'B',
-    description: '视频安全加密技术博客'
-  },
-  {
-    name: 'Irdeto Blog', // 搜索补充：数字平台安全
-    url: 'https://irdeto.com/feed/',
-    defaultCategory: 'Technology Update',
-    authorityLevel: 'B',
-    description: '数字平台安全与反盗版技术'
-  },
-
-  // --- Industry News (A/B-Tier) ---
-  {
-    name: 'Streaming Media',
-    url: 'https://www.streamingmedia.com/RSS/',
-    defaultCategory: 'Industry News',
-    authorityLevel: 'A',
-    description: '流媒体行业深度报道'
-  },
-  {
-    name: 'Broadband TV News',
-    url: 'https://www.broadbandtvnews.com/feed/',
-    defaultCategory: 'Industry News',
-    authorityLevel: 'B',
-    description: '欧洲及全球宽带电视资讯'
-  },
-  {
-    name: 'Digital TV Europe',
-    url: 'https://www.digitaltveurope.com/feed/',
-    defaultCategory: 'Industry News',
-    authorityLevel: 'B',
-    description: '数字电视行业新闻'
-  },
-  {
-    name: 'EFF Updates',
-    url: 'https://www.eff.org/rss/updates.xml',
-    defaultCategory: 'Industry News',
-    authorityLevel: 'B',
-    description: '数字权利与法律更新'
-  }
+  */
 ];
 
 export const CATEGORY_KEYWORDS: Record<Category, string[]> = {

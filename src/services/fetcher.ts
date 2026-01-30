@@ -212,17 +212,35 @@ export class NewsFetcher {
   }
 
   private ruleBasedAnalysis(item: NewsItem): NewsItem {
-    // Fallback logic
+    // Fallback logic for non-paid users
     let impactLevel: '高' | '中' | '低' = '低';
-    if (item.score >= 60) impactLevel = '高';
+    
+    // Simple heuristic for impact based on score or keywords
+    if (item.score >= 60 || item.title.includes('vulnerability') || item.title.includes('漏洞')) impactLevel = '高';
     else if (item.score >= 40) impactLevel = '中';
+
+    // Generate a basic summary using the snippet (truncated)
+    const snippet = item.contentSnippet ? item.contentSnippet.substring(0, 150).replace(/\n/g, ' ') + '...' : '暂无详细摘要';
+    
+    // Provide a generic but polite Chinese message
+    const isEnglishSource = /[\u0000-\u00ff]+/.test(item.title); // Rough check if mostly ASCII
+    
+    let summary = snippet;
+    let potentialImpact = '需要人工评估该技术更新的具体影响。';
+    let actionSuggestion = '建议点击链接查看原文详情。';
+
+    if (isEnglishSource) {
+      summary = `[原语言摘要] ${snippet} (注：由于未配置 AI Key，暂不支持自动翻译)`;
+      potentialImpact = '请阅读原文以评估对业务的潜在影响。';
+      actionSuggestion = '请直接访问来源链接。';
+    }
 
     return {
       ...item,
       impactLevel,
-      summary: `(自动翻译暂不可用) ${item.title}`,
-      potentialImpact: '请配置 OpenAI Key 以获取深度分析。',
-      actionSuggestion: '请关注原链接内容。'
+      summary,
+      potentialImpact,
+      actionSuggestion
     };
   }
 
