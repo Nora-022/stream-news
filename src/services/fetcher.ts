@@ -39,6 +39,9 @@ export interface NewsItem {
   summary: string;
   potentialImpact: string;
   actionSuggestion: string;
+  // New Fields for Enhanced Layout
+  region: string;
+  type: string;
 }
 
 export class NewsFetcher {
@@ -159,6 +162,19 @@ export class NewsFetcher {
       if (fullText.includes(noise.toLowerCase())) score -= 50;
     });
 
+    // Determine Type based on Category
+    let type = '行业动态';
+    if (category === 'Technology Update') type = '技术预警';
+    else if (category === 'Competitor Intelligence') type = '竞品动态';
+    else if (category === 'Industry News') type = '平台动态';
+
+    // Determine Region (Simple Heuristic)
+    let region = '全球';
+    if (fullText.includes('china') || fullText.includes('cn') || fullText.includes('中国')) region = '中国';
+    else if (fullText.includes('japan') || fullText.includes('jp') || fullText.includes('日本')) region = '日本';
+    else if (fullText.includes('usa') || fullText.includes('us') || fullText.includes('美国')) region = '北美';
+    else if (fullText.includes('europe') || fullText.includes('eu') || fullText.includes('欧洲')) region = '欧洲';
+
     // Default analysis (placeholder)
     return {
       title: item.title || 'No Title',
@@ -171,7 +187,9 @@ export class NewsFetcher {
       impactLevel: '低',
       summary: 'Waiting for analysis...',
       potentialImpact: 'Waiting for analysis...',
-      actionSuggestion: 'Waiting for analysis...'
+      actionSuggestion: 'Waiting for analysis...',
+      region,
+      type
     };
   }
 
@@ -195,7 +213,9 @@ export class NewsFetcher {
   "summary": "中文摘要，100字以内，概括核心事实",
   "impactLevel": "高" | "中" | "低",
   "potentialImpact": "中文，说明对流媒体下载/播放/DRM技术的潜在影响",
-  "actionSuggestion": "中文，针对产品研发团队的行动建议"
+  "actionSuggestion": "中文，针对产品研发团队的行动建议",
+  "region": "国家或地区（如：全球、北美、日本、欧洲）",
+  "type": "简短分类（如：技术预警、平台动态、竞品动态、新商机）"
 }
 `;
 
@@ -213,7 +233,9 @@ export class NewsFetcher {
           summary: analysis.summary,
           impactLevel: analysis.impactLevel,
           potentialImpact: analysis.potentialImpact,
-          actionSuggestion: analysis.actionSuggestion
+          actionSuggestion: analysis.actionSuggestion,
+          region: analysis.region || item.region,
+          type: analysis.type || item.type
         };
       }
     } catch (error) {
@@ -261,7 +283,10 @@ export class NewsFetcher {
       impactLevel,
       summary,
       potentialImpact,
-      actionSuggestion
+      actionSuggestion,
+      // Keep pre-calculated region/type
+      region: item.region,
+      type: item.type
     };
   }
 

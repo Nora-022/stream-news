@@ -15,11 +15,18 @@ export class FeishuService {
       return;
     }
 
-    const hasNews = Object.values(groupedNews).some(items => items.length > 0);
-    if (!hasNews) {
+    // Flatten all items to process them in a single flow
+    const allItems = Object.values(groupedNews).flat();
+    if (allItems.length === 0) {
       console.log('No new news to send.');
       return;
     }
+
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+
+    // 1. Generate Global Summary (Aggregation of titles)
+    const summaryText = allItems.slice(0, 5).map(i => i.title).join('；') + '。';
 
     const cardContent = {
       config: {
@@ -28,78 +35,68 @@ export class FeishuService {
       header: {
         title: {
           tag: 'plain_text',
-          content: `📡 每日行业情报简报 - ${new Date().toLocaleDateString()}`
+          content: `StreamFab 情报(${dateStr})`
         },
-        template: 'blue'
+        template: 'red' // Red header as per image
       },
       elements: [] as any[]
     };
 
-    const categoryEmojis: Record<Category, string> = {
-      'Technology Update': '🔔 技术预警',
-      'Competitor Intelligence': '⚔️ 竞品情报',
-      'Industry News': '📰 行业新闻'
-    };
+    // 2. Global Intelligence Section
+    cardContent.elements.push({
+      tag: 'div',
+      text: {
+        tag: 'lark_md',
+        content: `## 🌎 StreamFab 全球情报\n${summaryText}`
+      }
+    });
 
-    const categoryChinese: Record<Category, string> = {
-      'Technology Update': '技术预警',
-      'Competitor Intelligence': '竞品情报',
-      'Industry News': '行业新闻'
-    };
+    cardContent.elements.push({
+      tag: 'hr'
+    });
 
-    // Build Card Content
-    for (const [category, items] of Object.entries(groupedNews)) {
-      if (items.length > 0) {
-        // Section Header (Category)
-        const cat = category as Category;
-        const catTitle = categoryEmojis[cat] || `🔹 ${category}`;
+    // 3. Item Sections
+    allItems.forEach((item, index) => {
+      // Determine Icon: Red Circle for High Impact/Competitor, Diamond for others
+      let icon = '💎';
+      if (item.impactLevel === '高' || item.category === 'Competitor Intelligence') {
+        icon = '🔴';
+      }
 
+      // Title Line: ### 💎 [Region] Title
+      const titleLine = `### ${icon} [${item.region}] ${item.title}`;
+
+      // Fields
+      // Region: ... | Type: ...
+      const fieldLine1 = `**区域**: ${item.region} | **类型**: ${item.type}`;
+      
+      // Analysis
+      const analysisLine = `**分析**: ${item.potentialImpact}`;
+      
+      // Suggestion
+      const suggestionLine = `**建议**: ${item.actionSuggestion}`;
+
+      // Source Link
+      const sourceLine = `[🔗 来源: ${item.source}](${item.link})`;
+
+      // Combine into one markdown block
+      const contentBlock = `${titleLine}\n${fieldLine1}\n${analysisLine}\n${suggestionLine}\n${sourceLine}`;
+
+      cardContent.elements.push({
+        tag: 'div',
+        text: {
+          tag: 'lark_md',
+          content: contentBlock
+        }
+      });
+
+      // Separator (except last)
+      if (index < allItems.length - 1) {
         cardContent.elements.push({
-          tag: 'div',
-          text: {
-            tag: 'lark_md',
-            content: `**${catTitle}**`
-          }
-        });
-        
-        cardContent.elements.push({
-           tag: 'hr'
-        });
-
-        // Items
-        items.forEach((item, index) => {
-          // Determine Color for Impact Level
-          let impactColor = 'grey';
-          if (item.impactLevel === '高') impactColor = 'red';
-          else if (item.impactLevel === '中') impactColor = 'orange';
-          else impactColor = 'green';
-
-          // Content Block
-          const contentBlock = `**影响等级**：<font color="${impactColor}">${item.impactLevel}</font>\n\n**内容摘要**：\n${item.summary}\n\n**潜在影响**：\n${item.potentialImpact}\n\n**行动建议**：\n${item.actionSuggestion}\n\n**来源**：\n[${item.source}](${item.link})`;
-
-          cardContent.elements.push({
-            tag: 'div',
-            text: {
-              tag: 'lark_md',
-              content: contentBlock
-            }
-          });
-
-          // Separator between items (except last one)
-          if (index < items.length - 1) {
-            cardContent.elements.push({
-              tag: 'hr'
-            });
-          }
-        });
-        
-        // Large Separator between Categories
-        cardContent.elements.push({
-            tag: 'markdown',
-            content: '---' 
+          tag: 'hr'
         });
       }
-    }
+    });
 
     // Footer
     cardContent.elements.push({
@@ -107,7 +104,7 @@ export class FeishuService {
       elements: [
         {
           tag: 'plain_text',
-          content: 'Powered by StreamDRM Bot | 每日 09:00 推送'
+          content: 'Powered by StreamDRM Bot'
         }
       ]
     });
