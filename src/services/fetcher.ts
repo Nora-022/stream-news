@@ -1,10 +1,12 @@
 import Parser from 'rss-parser';
+import OpenAI from 'openai';
 import { 
   NEWS_SOURCES, 
   CATEGORY_KEYWORDS, 
   TECH_SIGNALS, 
   NOISE_KEYWORDS, 
   AUTHORITY_WEIGHTS,
+  CONFIG,
   type NewsSource, 
   type Category 
 } from '../config.js';
@@ -14,6 +16,14 @@ const parser = new Parser({
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
   }
 });
+
+let openai: OpenAI | null = null;
+if (CONFIG.OPENAI_API_KEY) {
+  openai = new OpenAI({
+    apiKey: CONFIG.OPENAI_API_KEY,
+    baseURL: CONFIG.OPENAI_BASE_URL
+  });
+}
 
 export interface NewsItem {
   title: string;
@@ -57,8 +67,8 @@ export class NewsFetcher {
         for (const item of recentItems) {
           if (!item.title || !item.link) continue;
 
-          // Process each item
-          const processedItem = this.processItem(item, source);
+          // Process each item (Initial Scoring)
+          const processedItem = this.preProcessItem(item, source);
           
           // Filter noise
           if (processedItem.score > 0) { 
@@ -73,7 +83,7 @@ export class NewsFetcher {
     // 2. Deduplicate
     const uniqueItems = this.deduplicate(rawItems);
 
-    // 3. Group and Sort (Top 3)
+    // 3. Group and Sort (Top 3 Candidates)
     const result: Record<Category, NewsItem[]> = {
       'Technology Update': [],
       'Industry News': [],
@@ -87,16 +97,26 @@ export class NewsFetcher {
       }
     });
 
-    // Sort by score and take Top 3
+    // Sort by score and take Top 3 for Analysis
     for (const key of Object.keys(result) as Category[]) {
       result[key].sort((a, b) => b.score - a.score);
-      result[key] = result[key].slice(0, 3);
+      const topItems = result[key].slice(0, 3);
+      
+      // 4. Deep Analysis with LLM for Top Items
+      console.log(`Analyzing top items for ${key}...`);
+      const analyzedItems: NewsItem[] = [];
+      for (const item of topItems) {
+        const analyzed = await this.enrichWithLLM(item);
+        analyzedItems.push(analyzed);
+      }
+      
+      result[key] = analyzedItems;
     }
 
     return result;
   }
 
-  private processItem(item: Parser.Item, source: NewsSource): NewsItem {
+  private preProcessItem(item: Parser.Item, source: NewsSource): NewsItem {
     const title = item.title || '';
     const content = (item.contentSnippet || item.content || '').toLowerCase();
     const fullText = `${title} ${content}`.toLowerCase();
@@ -127,57 +147,82 @@ export class NewsFetcher {
       if (fullText.includes(noise.toLowerCase())) score -= 50;
     });
 
-    // 3. Generate Analysis (Rule-based Mock AI)
-    const analysis = this.generateAnalysis(fullText, category, score);
-
+    // Default analysis (placeholder)
     return {
       title: item.title || 'No Title',
       link: item.link || '',
       pubDate: item.pubDate || new Date().toISOString(),
-      contentSnippet: item.contentSnippet || '',
+      contentSnippet: item.contentSnippet || item.content || '',
       source: source.name,
       category,
       score,
-      ...analysis
+      impactLevel: '低',
+      summary: 'Waiting for analysis...',
+      potentialImpact: 'Waiting for analysis...',
+      actionSuggestion: 'Waiting for analysis...'
     };
   }
 
-  private generateAnalysis(text: string, category: Category, score: number): { impactLevel: '高' | '中' | '低', summary: string, potentialImpact: string, actionSuggestion: string } {
-    // Impact Level
+  private async enrichWithLLM(item: NewsItem): Promise<NewsItem> {
+    if (!openai) {
+      // Fallback to rule-based if no OpenAI key
+      return this.ruleBasedAnalysis(item);
+    }
+
+    try {
+      const prompt = `
+你是一个流媒体与DRM技术专家助手。请分析以下新闻，并以JSON格式输出中文分析结果。
+
+【新闻标题】: ${item.title}
+【新闻内容】: ${item.contentSnippet?.substring(0, 1000)}...
+【来源】: ${item.source}
+【分类】: ${item.category}
+
+请输出严格的 JSON 格式（不要包含 Markdown 代码块标记）：
+{
+  "summary": "中文摘要，100字以内，概括核心事实",
+  "impactLevel": "高" | "中" | "低",
+  "potentialImpact": "中文，说明对流媒体下载/播放/DRM技术的潜在影响",
+  "actionSuggestion": "中文，针对产品研发团队的行动建议"
+}
+`;
+
+      const completion = await openai.chat.completions.create({
+        messages: [{ role: "user", content: prompt }],
+        model: CONFIG.OPENAI_MODEL,
+        response_format: { type: "json_object" }
+      });
+
+      const content = completion.choices[0].message.content;
+      if (content) {
+        const analysis = JSON.parse(content);
+        return {
+          ...item,
+          summary: analysis.summary,
+          impactLevel: analysis.impactLevel,
+          potentialImpact: analysis.potentialImpact,
+          actionSuggestion: analysis.actionSuggestion
+        };
+      }
+    } catch (error) {
+      console.error(`LLM Analysis failed for ${item.title}:`, error);
+    }
+
+    return this.ruleBasedAnalysis(item);
+  }
+
+  private ruleBasedAnalysis(item: NewsItem): NewsItem {
+    // Fallback logic
     let impactLevel: '高' | '中' | '低' = '低';
-    if (score >= 60) impactLevel = '高';
-    else if (score >= 40) impactLevel = '中';
-
-    // Summary (In a real scenario, call LLM here. Now just use first 150 chars of text)
-    // IMPORTANT: Since we don't have an LLM, we just use the English text but labeled in Chinese structure.
-    // If the user *really* needs translation, we'd need an API key.
-    const summary = text.substring(0, 200) + '...';
-
-    // Potential Impact (Rule-based)
-    let potentialImpact = '暂无明显直接影响，建议持续关注。';
-    if (text.includes('widevine') || text.includes('drm')) {
-      potentialImpact = '可能涉及内容保护机制变更，影响下载/播放成功率。';
-    } else if (text.includes('netflix') || text.includes('disney')) {
-      potentialImpact = '主流平台策略调整，需验证产品兼容性。';
-    } else if (text.includes('streamfab') || text.includes('downloader')) {
-      potentialImpact = '竞品功能更新，可能改变市场竞争格局。';
-    }
-
-    // Action Suggestion
-    let actionSuggestion = '保持关注即可。';
-    if (impactLevel === '高') {
-      actionSuggestion = '建议立即安排技术调研，验证是否影响核心功能。';
-    } else if (category === 'Competitor Intelligence') {
-      actionSuggestion = '建议下载竞品最新版本进行对比测试。';
-    } else if (text.includes('update') || text.includes('upgrade')) {
-      actionSuggestion = '建议检查相关模块的稳定性。';
-    }
+    if (item.score >= 60) impactLevel = '高';
+    else if (item.score >= 40) impactLevel = '中';
 
     return {
+      ...item,
       impactLevel,
-      summary,
-      potentialImpact,
-      actionSuggestion
+      summary: `(自动翻译暂不可用) ${item.title}`,
+      potentialImpact: '请配置 OpenAI Key 以获取深度分析。',
+      actionSuggestion: '请关注原链接内容。'
     };
   }
 
