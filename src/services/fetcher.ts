@@ -249,33 +249,65 @@ export class NewsFetcher {
     // Fallback logic for non-paid users (ENHANCED)
     let impactLevel: '高' | '中' | '低' = '低';
     
-    // Heuristic: Vulnerability or Key Extraction = High Impact
     const lcTitle = item.title.toLowerCase();
+    const lcContent = (item.contentSnippet || '').toLowerCase();
+
+    // 1. Impact Level Logic
     if (lcTitle.includes('vulnerability') || lcTitle.includes('exploit') || lcTitle.includes('bypass') || lcTitle.includes('widevine l3') || lcTitle.includes('key extraction')) {
       impactLevel = '高';
+    } else if (lcTitle.includes('update') || lcTitle.includes('release') || lcTitle.includes('patch')) {
+      impactLevel = '中';
     } else if (item.score >= 40) {
       impactLevel = '中';
     }
 
-    // Generate a clean snippet
-    let snippet = item.contentSnippet ? item.contentSnippet.substring(0, 200).replace(/\n/g, ' ') + '...' : '暂无详细摘要';
-    
+    // 2. Summary Logic (Use first 2 sentences instead of raw snippet)
+    let summary = item.contentSnippet || '';
+    // Remove HTML tags if any (basic regex)
+    summary = summary.replace(/<[^>]*>?/gm, '');
+    // Take first 300 chars or first 2 sentences
+    const sentences = summary.split(/[.!?]/);
+    if (sentences.length > 2) {
+      summary = sentences.slice(0, 2).join('.') + '.';
+    }
+    if (summary.length > 300) {
+      summary = summary.substring(0, 300) + '...';
+    }
+    if (!summary) summary = '暂无详细摘要，请查看原文标题。';
+
+    // 3. Potential Impact Logic (Rule-based mapping)
+    let potentialImpact = '请技术团队评估该更新对播放器/下载服务的影响。';
+    if (lcTitle.includes('dmca') || lcTitle.includes('lawsuit') || lcTitle.includes('court')) {
+      potentialImpact = '法律风险：可能涉及反规避条款 (Anti-Circumvention)，需法务评估合规性。';
+    } else if (lcTitle.includes('widevine') || lcTitle.includes('drm') || lcTitle.includes('cdm')) {
+      potentialImpact = '技术风险：DRM 机制变更可能导致现有 CDM 或解密模块失效。';
+    } else if (lcTitle.includes('netflix') || lcTitle.includes('disney') || lcTitle.includes('hulu')) {
+      potentialImpact = '平台变动：流媒体平台接口或加密策略可能调整，影响下载成功率。';
+    } else if (lcTitle.includes('streamfab') || lcTitle.includes('anystream')) {
+      potentialImpact = '竞品动态：竞争对手可能已修复相关问题或发布新功能。';
+    }
+
+    // 4. Action Suggestion Logic
+    let actionSuggestion = '点击标题查看技术细节。';
+    if (impactLevel === '高') {
+      actionSuggestion = '高危预警：建议立即安排研发团队进行技术调研与验证。';
+    } else if (lcTitle.includes('dmca') || lcTitle.includes('lawsuit')) {
+      actionSuggestion = '建议排查产品功能是否涉及类似法律风险。';
+    } else if (lcTitle.includes('update') || lcTitle.includes('release')) {
+      actionSuggestion = '建议核对版本更新日志，检查是否影响现有功能。';
+    }
+
     // Add Tag based on keywords
     let tag = '';
-    if (lcTitle.includes('widevine')) tag = '【Widevine Update】';
-    else if (lcTitle.includes('playready')) tag = '【PlayReady Update】';
-    else if (lcTitle.includes('fairplay')) tag = '【FairPlay Update】';
-    else if (lcTitle.includes('netflix')) tag = '【Netflix Tech】';
-    else if (lcTitle.includes('disney')) tag = '【Disney Tech】';
+    if (lcTitle.includes('widevine')) tag = '【Widevine】';
+    else if (lcTitle.includes('playready')) tag = '【PlayReady】';
+    else if (lcTitle.includes('fairplay')) tag = '【FairPlay】';
+    else if (lcTitle.includes('netflix')) tag = '【Netflix】';
+    else if (lcTitle.includes('disney')) tag = '【Disney+】';
+    else if (lcTitle.includes('dmca')) tag = '【法律合规】';
 
-    let summary = snippet;
-    let potentialImpact = '请技术团队评估该更新对播放器/下载服务的影响。';
-    let actionSuggestion = '点击标题查看技术细节。';
-
-    // For English content, just show it cleanly without "Not Translated" warnings if possible, 
-    // or keep it minimal. The user understands English technical terms.
     if (tag) {
-      summary = `${tag} ${snippet}`;
+      summary = `${tag} ${summary}`;
     }
 
     return {
